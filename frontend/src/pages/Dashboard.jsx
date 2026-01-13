@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, FileText, History, User, LogOut, 
   Plus, TrendingUp, AlertCircle, CheckCircle, Clock,
   IndianRupee, Calendar, Download, ChevronRight, RefreshCw,
-  CreditCard, PieChart, ArrowUpRight, ArrowDownRight, Trash2, Play
+  CreditCard, PieChart, ArrowUpRight, ArrowDownRight, Trash2, Play, X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -32,6 +32,7 @@ const Dashboard = ({ onStartNewLoan, onLogout }) => {
   const [loans, setLoans] = useState([]);
   const [loanHistory, setLoanHistory] = useState([]);
   const [profile, setProfile] = useState(user || null);
+  const [selectedLoan, setSelectedLoan] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -125,19 +126,11 @@ const Dashboard = ({ onStartNewLoan, onLogout }) => {
   };
 
   const handleViewLoanDetails = (loan) => {
-    // Show loan details in a toast or modal
-    const details = `
-Loan ID: ${loan.loan_id}
-Amount: ${formatCurrency(loan.approved_amount || loan.loan_amount)}
-Interest Rate: ${loan.interest_rate || '-'}% p.a.
-Tenure: ${loan.tenure_months || '-'} months
-EMI: ${loan.emi_amount ? formatCurrency(loan.emi_amount) : '-'}
-Status: ${loan.status.replace('_', ' ').toUpperCase()}
-EMIs Paid: ${loan.emis_paid || 0}/${loan.total_emis || '-'}
-Outstanding: ${loan.outstanding_balance ? formatCurrency(loan.outstanding_balance) : '-'}
-    `.trim();
-    
-    toast.success(details, { duration: 8000, style: { whiteSpace: 'pre-line', textAlign: 'left' } });
+    setSelectedLoan(loan);
+  };
+
+  const closeLoanDetails = () => {
+    setSelectedLoan(null);
   };
 
   const formatCurrency = (amount) => {
@@ -891,6 +884,136 @@ Outstanding: ${loan.outstanding_balance ? formatCurrency(loan.outstanding_balanc
           </motion.div>
         )}
       </main>
+
+      {/* Loan Details Modal */}
+      <AnimatePresence>
+        {selectedLoan && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={closeLoanDetails}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-[#004c8c] to-[#0066b3] px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Loan Details</h2>
+                    <p className="text-white/80 text-sm">{selectedLoan.loan_id}</p>
+                  </div>
+                  <button
+                    onClick={closeLoanDetails}
+                    className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-white" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-4">
+                {/* Status Badge */}
+                <div className="flex justify-center">
+                  <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(selectedLoan.status)}`}>
+                    {getStatusIcon(selectedLoan.status)}
+                    {selectedLoan.status.replace('_', ' ').toUpperCase()}
+                  </span>
+                </div>
+
+                {/* Loan Amount - Highlighted */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 text-center border border-green-200">
+                  <p className="text-sm text-gray-600 mb-1">Loan Amount</p>
+                  <p className="text-3xl font-bold text-green-700">
+                    {formatCurrency(selectedLoan.approved_amount || selectedLoan.loan_amount)}
+                  </p>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Interest Rate</p>
+                    <p className="text-lg font-semibold text-gray-800">
+                      {selectedLoan.interest_rate ? `${selectedLoan.interest_rate}% p.a.` : '-'}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Tenure</p>
+                    <p className="text-lg font-semibold text-gray-800">
+                      {selectedLoan.tenure_months ? `${selectedLoan.tenure_months} months` : '-'}
+                    </p>
+                  </div>
+                  <div className="bg-blue-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Monthly EMI</p>
+                    <p className="text-lg font-semibold text-blue-700">
+                      {selectedLoan.emi_amount ? formatCurrency(selectedLoan.emi_amount) : '-'}
+                    </p>
+                  </div>
+                  <div className="bg-orange-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Outstanding</p>
+                    <p className="text-lg font-semibold text-orange-700">
+                      {selectedLoan.outstanding_balance ? formatCurrency(selectedLoan.outstanding_balance) : '-'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* EMI Progress */}
+                {selectedLoan.total_emis > 0 && (
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="text-sm font-medium text-gray-700">EMI Progress</p>
+                      <p className="text-sm font-semibold text-gray-800">
+                        {selectedLoan.emis_paid || 0} / {selectedLoan.total_emis} paid
+                      </p>
+                    </div>
+                    <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-[#004c8c] to-[#0066b3] rounded-full transition-all duration-500"
+                        style={{ width: `${((selectedLoan.emis_paid || 0) / selectedLoan.total_emis) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Applied Date */}
+                <div className="flex items-center justify-between text-sm text-gray-600 pt-2 border-t">
+                  <span>Applied On</span>
+                  <span className="font-medium">{formatDate(selectedLoan.applied_at)}</span>
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="bg-gray-50 px-6 py-4 flex gap-3">
+                {['approved', 'disbursed', 'ongoing'].includes(selectedLoan.status) && selectedLoan.has_sanction_letter && (
+                  <button
+                    onClick={() => {
+                      handleDownloadSanctionLetter(selectedLoan.loan_id);
+                      closeLoanDetails();
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Sanction Letter
+                  </button>
+                )}
+                <button
+                  onClick={closeLoanDetails}
+                  className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
