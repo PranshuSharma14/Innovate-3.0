@@ -165,12 +165,6 @@ NBFC-Loan-Approval/
 
 ---
 
-## ⚠️ Disclaimer
-
-This is a **demo project** for Innovate 3.0 Hackathon. Uses synthetic data only - no real transactions.
-
----
-
 ## 👨‍💻 Author
 
 **Pranshu Sharma**
