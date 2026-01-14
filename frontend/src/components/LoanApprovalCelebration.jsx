@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckCircle, Download, Home, PartyPopper, Sparkles, 
   IndianRupee, Calendar, FileText, Shield, Star,
-  ArrowRight, Phone, Mail, Clock
+  ArrowRight, Phone, Mail, Clock, TrendingUp, DollarSign, Eye, 
+  AlertCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -70,7 +71,17 @@ const LoanApprovalCelebration = ({
   const interestRate = loanDetails?.interest_rate || 12.5;
   const tenure = loanDetails?.tenure || 60;
   const emi = loanDetails?.emi || Math.round((loanAmount * (interestRate/1200) * Math.pow(1 + interestRate/1200, tenure)) / (Math.pow(1 + interestRate/1200, tenure) - 1));
-  const loanId = loanDetails?.loan_id || `QL-LN-${sessionId?.slice(0, 6).toUpperCase() || '000000'}`;
+  const loanId = loanDetails?.loan_account_number || loanDetails?.loan_id || `QL-LN-${sessionId?.slice(0, 6).toUpperCase() || '000000'}`;
+  
+  // Extract approval details
+  const creditScore = loanDetails?.credit_score || 'N/A';
+  const scoreBand = loanDetails?.score_band || 'Good';
+  const preApprovedLimit = loanDetails?.pre_approved_limit || 0;
+  const totalInterest = loanDetails?.total_interest || 0;
+  const totalRepayment = loanDetails?.total_repayment || 0;
+  const processingFee = loanDetails?.processing_fee || 0;
+  const firstEMIDate = loanDetails?.first_emi_date || 'N/A';
+  const loanPurpose = loanDetails?.purpose || 'Personal';
 
   return (
     <div className="fixed inset-0 z-50 bg-gradient-to-br from-[#004c8c] via-[#0066b3] to-[#003d73] overflow-y-auto">
@@ -238,12 +249,110 @@ const LoanApprovalCelebration = ({
                   </motion.div>
                 </div>
 
+                {/* Credit & Approval Details Section */}
+                <motion.div 
+                  className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-6 border border-blue-200"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.55 }}
+                >
+                  <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-lg">
+                    <Eye className="w-5 h-5 text-[#004c8c]" />
+                    Why Your Loan Was Approved
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingUp className="w-5 h-5 text-blue-600" />
+                        <span className="text-sm text-gray-600">Credit Score</span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-800">{creditScore}</p>
+                      <p className="text-xs text-gray-500 mt-1">Status: {scoreBand}</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <DollarSign className="w-5 h-5 text-green-600" />
+                        <span className="text-sm text-gray-600">Pre-Approved Limit</span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-800">₹{preApprovedLimit.toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-gray-500 mt-1">Your eligible amount</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="w-5 h-5 text-purple-600" />
+                        <span className="text-sm text-gray-600">Loan Purpose</span>
+                      </div>
+                      <p className="text-lg font-bold text-gray-800 capitalize">{loanPurpose.replace('_', ' ')}</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Shield className="w-5 h-5 text-indigo-600" />
+                        <span className="text-sm text-gray-600">Approval Status</span>
+                      </div>
+                      <p className="text-lg font-bold text-green-600 flex items-center gap-1">
+                        ✓ Approved
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Detailed Loan Breakdown */}
+                <motion.div 
+                  className="bg-gradient-to-r from-gray-50 to-white rounded-2xl p-6 mb-6 border border-gray-200"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                >
+                  <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-lg">
+                    <DollarSign className="w-5 h-5 text-[#004c8c]" />
+                    Comprehensive Loan Details
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center p-3 bg-white rounded-lg hover:bg-gray-50 transition">
+                      <span className="text-gray-600 font-medium">Principal Amount</span>
+                      <span className="text-gray-800 font-bold">₹{loanAmount.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-white rounded-lg hover:bg-gray-50 transition">
+                      <span className="text-gray-600 font-medium">Interest Rate (p.a.)</span>
+                      <span className="text-gray-800 font-bold">{interestRate}% (Reducing Balance)</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-white rounded-lg hover:bg-gray-50 transition">
+                      <span className="text-gray-600 font-medium">Loan Tenure</span>
+                      <span className="text-gray-800 font-bold">{tenure} Months</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-white rounded-lg hover:bg-gray-50 transition">
+                      <span className="text-gray-600 font-medium">Monthly EMI</span>
+                      <span className="text-gray-800 font-bold">₹{emi.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg border border-green-200">
+                      <span className="text-gray-600 font-medium">Total Interest</span>
+                      <span className="text-green-700 font-bold">₹{totalInterest.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <span className="text-gray-600 font-medium">Total Repayment Amount</span>
+                      <span className="text-blue-700 font-bold">₹{totalRepayment.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-white rounded-lg hover:bg-gray-50 transition">
+                      <span className="text-gray-600 font-medium">Processing Fee (2%)</span>
+                      <span className="text-gray-800 font-bold">₹{processingFee.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-white rounded-lg hover:bg-gray-50 transition">
+                      <span className="text-gray-600 font-medium">First EMI Date</span>
+                      <span className="text-gray-800 font-bold">{firstEMIDate}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-white rounded-lg hover:bg-gray-50 transition">
+                      <span className="text-gray-600 font-medium">Loan Account Number</span>
+                      <span className="text-gray-800 font-bold">{loanId}</span>
+                    </div>
+                  </div>
+                </motion.div>
+
                 {/* Next Steps */}
                 <motion.div 
                   className="bg-gray-50 rounded-2xl p-6 mb-6"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 0.6 }}
+                  transition={{ delay: 0.7 }}
                 >
                   <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                     <Clock className="w-5 h-5 text-[#004c8c]" />
@@ -260,7 +369,7 @@ const LoanApprovalCelebration = ({
                         className="flex items-center gap-3"
                         initial={{ x: -20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.7 + i * 0.1 }}
+                      transition={{ delay: 0.8 + i * 0.1 }}
                       >
                         <div className="w-8 h-8 rounded-full bg-[#004c8c] text-white flex items-center justify-center text-sm font-bold">
                           {item.step}
@@ -282,7 +391,7 @@ const LoanApprovalCelebration = ({
                     whileTap={{ scale: 0.98 }}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8 }}
+                    transition={{ delay: 0.9 }}
                   >
                     <Download className="w-5 h-5" />
                     {letterDownloading ? 'Generating...' : 'Download Sanction Letter'}
@@ -295,7 +404,7 @@ const LoanApprovalCelebration = ({
                     whileTap={{ scale: 0.98 }}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.9 }}
+                    transition={{ delay: 1.0 }}
                   >
                     <Home className="w-5 h-5" />
                     Back to Dashboard
@@ -307,7 +416,7 @@ const LoanApprovalCelebration = ({
                   className="mt-6 pt-6 border-t text-center text-sm text-gray-500"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 1 }}
+                  transition={{ delay: 1.1 }}
                 >
                   <p className="mb-2">Need help? Our support team is here for you</p>
                   <div className="flex items-center justify-center gap-6">

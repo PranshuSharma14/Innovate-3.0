@@ -43,18 +43,19 @@ const Dashboard = ({ onStartNewLoan, onLogout }) => {
     try {
       const headers = getAuthHeader();
       
-      // Fetch in parallel but don't block UI
-      const [summaryRes, loansRes, historyRes, profileRes] = await Promise.all([
-        axios.get(`${API_BASE}/api/dashboard/summary`, { headers }).catch(e => ({ data: null })),
-        axios.get(`${API_BASE}/api/dashboard/loans`, { headers }).catch(e => ({ data: { loans: [] } })),
-        axios.get(`${API_BASE}/api/dashboard/loan-history`, { headers }).catch(e => ({ data: { loan_history: [] } })),
-        axios.get(`${API_BASE}/api/dashboard/profile`, { headers }).catch(e => ({ data: { profile: null } }))
-      ]);
-
-      if (summaryRes.data) setDashboardData(summaryRes.data);
-      setLoans(loansRes.data.loans || []);
-      setLoanHistory(historyRes.data.loan_history || []);
-      setProfile(profileRes.data.profile || user || null);
+      // Single optimized API call for ALL dashboard data
+      const response = await axios.get(`${API_BASE}/api/dashboard/all`, { headers });
+      
+      if (response.data.success) {
+        setDashboardData({
+          user: response.data.user,
+          summary: response.data.summary,
+          upcoming_emis: response.data.upcoming_emis
+        });
+        setLoans(response.data.loans || []);
+        setLoanHistory(response.data.loan_history || []);
+        setProfile(response.data.profile || user || null);
+      }
     } catch (error) {
       console.error('Dashboard fetch error:', error);
       if (error.response?.status === 401) {
@@ -787,6 +788,38 @@ const Dashboard = ({ onStartNewLoan, onLogout }) => {
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">
                             <Clock className="w-3 h-3" /> Pending
                           </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Date of Birth & Age */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <label className="text-xs text-gray-500 uppercase tracking-wide">Date of Birth</label>
+                      <p className="font-medium text-gray-800 mt-1">
+                        {profile?.date_of_birth 
+                          ? new Date(profile.date_of_birth).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+                          : 'Not provided'
+                        }
+                      </p>
+                    </div>
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+                      <label className="text-xs text-blue-600 uppercase tracking-wide font-medium">Age & Loan Eligibility</label>
+                      <div className="mt-1">
+                        {profile?.age ? (
+                          <>
+                            <p className="font-bold text-2xl text-gray-800">{profile.age} <span className="text-sm font-normal text-gray-500">years</span></p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {profile.age >= 21 && profile.age <= 55 
+                                ? '✅ Eligible for all loan tenures (up to 60 months)'
+                                : profile.age > 55 && profile.age <= 60
+                                  ? `⚠️ Max tenure: ${(60 - profile.age) * 12} months`
+                                  : profile.age > 60
+                                    ? '❌ Age exceeds loan eligibility limit'
+                                    : '⚠️ Minimum age for loan is 21 years'
+                              }
+                            </p>
+                          </>
+                        ) : (
+                          <p className="font-medium text-gray-600">Not provided</p>
                         )}
                       </div>
                     </div>

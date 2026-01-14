@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Send, MessageCircle, User, Bot, Download, Upload, FileText, 
   CheckCircle, XCircle, ArrowLeft, Home, Phone, Shield,
-  IndianRupee, Clock, Sparkles
+  IndianRupee, Clock, Sparkles, PartyPopper
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
@@ -117,8 +117,8 @@ const BankChatInterface = ({ onBack, userInfo, loanId }) => {
               customerName: userInfo?.full_name || data.metadata.customer_name || 'Customer'
             }));
           }
-          // Show celebration after a short delay for dramatic effect
-          setTimeout(() => setShowCelebration(true), 1500);
+          // Show celebration after 5 seconds so user can read the chat details first
+          setTimeout(() => setShowCelebration(true), 5000);
         }
       }
 
@@ -425,25 +425,45 @@ const BankChatInterface = ({ onBack, userInfo, loanId }) => {
       {/* Input Area */}
       <footer className="bg-white border-t sticky bottom-0">
         <div className="max-w-4xl mx-auto px-4 py-4">
-          <form onSubmit={handleSubmit} className="flex gap-3">
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={isCompleted ? "Conversation completed" : "Type your message..."}
-              disabled={isLoading || isCompleted}
-              autoFocus
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#004c8c] focus:border-transparent transition-all disabled:bg-gray-100"
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !inputValue.trim() || isCompleted}
-              className="px-6 py-3 bg-[#004c8c] text-white rounded-xl font-medium hover:bg-[#003d73] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </form>
+          {/* Show View Approval Details button when loan is approved */}
+          {isCompleted && currentStage === 'completed' && loanDetails?.approved && !showCelebration ? (
+            <div className="flex flex-col gap-3">
+              <motion.button
+                onClick={() => setShowCelebration(true)}
+                className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold flex items-center justify-center gap-3 hover:shadow-lg transition-all"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <PartyPopper className="w-5 h-5" />
+                🎉 View Complete Approval Details & Download Letter
+              </motion.button>
+              <p className="text-center text-sm text-gray-500">
+                Click above to see your complete loan approval summary
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="flex gap-3">
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={isCompleted ? "Conversation completed" : "Type your message..."}
+                disabled={isLoading || isCompleted}
+                autoFocus
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#004c8c] focus:border-transparent transition-all disabled:bg-gray-100"
+              />
+              <button
+                type="submit"
+                disabled={isLoading || !inputValue.trim() || isCompleted}
+                className="px-6 py-3 bg-[#004c8c] text-white rounded-xl font-medium hover:bg-[#003d73] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </form>
+          )}
 
           <div className="flex items-center justify-center gap-4 mt-3 text-xs text-gray-500">
             <span className="flex items-center gap-1">

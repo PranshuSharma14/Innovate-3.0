@@ -179,7 +179,8 @@ class UserService:
         income_certificate_path: str = None,
         pan_number: str = None,
         pan_card_path: str = None,
-        phone_verified: bool = False
+        phone_verified: bool = False,
+        date_of_birth = None  # Date object for DOB
     ) -> Tuple[Optional[User], str]:
         """Create new user account with full KYC details"""
         try:
@@ -231,7 +232,8 @@ class UserService:
                 income_certificate_path=income_certificate_path,
                 phone_verified=phone_verified,  # Set from OTP verification
                 status=UserStatus.ACTIVE if phone_verified else UserStatus.PENDING_VERIFICATION,
-                kyc_status=kyc_status
+                kyc_status=kyc_status,
+                date_of_birth=date_of_birth  # Store DOB for age verification
             )
             
             db.add(user)

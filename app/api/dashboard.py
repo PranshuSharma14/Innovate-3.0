@@ -23,6 +23,153 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
 
+# ========== FAST COMBINED ENDPOINT ==========
+
+@router.get("/all")
+async def get_all_dashboard_data(
+    current_user: User = Depends(get_current_user_from_token),
+    db: Session = Depends(get_postgres_db)
+):
+    """Get ALL dashboard data in a single optimized API call for fast loading"""
+    try:
+        # Single query to get all loans - avoid multiple DB round trips
+        loans = db.query(UserLoan).filter(
+            UserLoan.user_id == current_user.id
+        ).order_by(desc(UserLoan.applied_at)).all()
+        
+        # Calculate summary statistics in memory (faster than multiple COUNT queries)
+        total_loans = len(loans)
+        approved_loans = 0
+        ongoing_loans = 0
+        rejected_loans = 0
+        closed_loans = 0
+        pending_loans = 0
+        total_borrowed = 0
+        total_outstanding = 0
+        upcoming_emis = []
+        
+        loan_list = []
+        loan_history = []
+        
+        for loan in loans:
+            # Count by status
+            if loan.status == LoanStatus.APPROVED:
+                approved_loans += 1
+            elif loan.status in [LoanStatus.ONGOING, LoanStatus.DISBURSED]:
+                ongoing_loans += 1
+            elif loan.status == LoanStatus.REJECTED:
+                rejected_loans += 1
+            elif loan.status == LoanStatus.CLOSED:
+                closed_loans += 1
+            elif loan.status in [LoanStatus.PENDING, LoanStatus.UNDER_REVIEW, LoanStatus.DRAFT]:
+                pending_loans += 1
+            
+            # Calculate totals
+            if loan.status in [LoanStatus.APPROVED, LoanStatus.ONGOING, LoanStatus.DISBURSED, LoanStatus.CLOSED]:
+                total_borrowed += float(loan.disbursed_amount or loan.approved_amount or loan.loan_amount or 0)
+            if loan.status in [LoanStatus.APPROVED, LoanStatus.ONGOING, LoanStatus.DISBURSED]:
+                total_outstanding += float(loan.outstanding_balance or loan.approved_amount or 0)
+            
+            # Upcoming EMIs
+            if loan.status in [LoanStatus.ONGOING, LoanStatus.DISBURSED] and loan.next_emi_date:
+                if loan.next_emi_date <= datetime.now(timezone.utc) + timedelta(days=30):
+                    upcoming_emis.append({
+                        "loan_id": loan.loan_id,
+                        "amount": float(loan.emi_amount) if loan.emi_amount else 0,
+                        "due_date": loan.next_emi_date.isoformat() if loan.next_emi_date else None
+                    })
+            
+            # Build loan data
+            loan_data = {
+                "loan_id": loan.loan_id,
+                "loan_amount": float(loan.loan_amount) if loan.loan_amount else 0,
+                "approved_amount": float(loan.approved_amount) if loan.approved_amount else None,
+                "interest_rate": float(loan.interest_rate) if loan.interest_rate else None,
+                "tenure_months": loan.tenure_months,
+                "purpose": loan.purpose,
+                "status": loan.status.value if loan.status else "unknown",
+                "emi_amount": float(loan.emi_amount) if loan.emi_amount else None,
+                "total_emis": loan.total_emis,
+                "emis_paid": loan.emis_paid or 0,
+                "outstanding_balance": float(loan.outstanding_balance) if loan.outstanding_balance else None,
+                "next_emi_date": loan.next_emi_date.isoformat() if loan.next_emi_date else None,
+                "rejection_reason": loan.rejection_reason,
+                "credit_score": loan.credit_score,
+                "applied_at": loan.applied_at.isoformat() if loan.applied_at else None,
+                "approved_at": loan.approved_at.isoformat() if loan.approved_at else None,
+                "has_sanction_letter": bool(loan.sanction_letter_path)
+            }
+            loan_list.append(loan_data)
+            
+            # For loan history (non-draft loans)
+            if loan.status != LoanStatus.DRAFT:
+                loan_history.append(loan_data)
+        
+        # Build profile data
+        has_aadhaar = bool(current_user.aadhaar_number)
+        has_pan = bool(current_user.pan_number)
+        has_income = bool(current_user.monthly_income)
+        aadhaar_verified = current_user.aadhaar_verified or has_aadhaar
+        pan_verified = current_user.pan_verified or has_pan
+        verification_count = sum([True, aadhaar_verified, pan_verified, has_income])
+        
+        # Calculate age from DOB
+        user_age = None
+        if current_user.date_of_birth:
+            from datetime import date
+            today = date.today()
+            dob = current_user.date_of_birth
+            user_age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        
+        profile_data = {
+            "user_id": current_user.user_id,
+            "full_name": current_user.full_name,
+            "phone": AuthService.mask_phone(current_user.phone),
+            "email": current_user.email,
+            "date_of_birth": current_user.date_of_birth.isoformat() if current_user.date_of_birth else None,
+            "age": user_age,
+            "aadhaar_masked": f"XXXX-XXXX-{current_user.aadhaar_number[-4:]}" if current_user.aadhaar_number else None,
+            "pan_masked": f"XXXXX{current_user.pan_number[-4:]}" if current_user.pan_number else None,
+            "monthly_income": float(current_user.monthly_income) if current_user.monthly_income else None,
+            "employment_type": current_user.employment_type or "salaried",
+            "kyc_status": current_user.kyc_status.value if current_user.kyc_status else "not_started",
+            "phone_verified": True,
+            "aadhaar_verified": aadhaar_verified,
+            "pan_verified": pan_verified,
+            "income_verified": has_income,
+            "verification_progress": min(verification_count * 25, 100),
+            "created_at": current_user.created_at.isoformat() if current_user.created_at else None
+        }
+        
+        return {
+            "success": True,
+            "user": {
+                "user_id": current_user.user_id,
+                "full_name": current_user.full_name,
+                "phone_masked": AuthService.mask_phone(current_user.phone),
+                "kyc_status": current_user.kyc_status.value if current_user.kyc_status else "not_started"
+            },
+            "summary": {
+                "total_loans": total_loans,
+                "approved_loans": approved_loans,
+                "ongoing_loans": ongoing_loans,
+                "rejected_loans": rejected_loans,
+                "closed_loans": closed_loans,
+                "pending_loans": pending_loans,
+                "total_borrowed": total_borrowed,
+                "total_outstanding": total_outstanding
+            },
+            "upcoming_emis": upcoming_emis,
+            "loans": loan_list,
+            "loan_history": loan_history,
+            "profile": profile_data
+        }
+        
+    except Exception as e:
+        logger.error(f"Combined dashboard data error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ========== DASHBOARD ENDPOINTS ==========
 
 @router.get("/summary")

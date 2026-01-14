@@ -96,6 +96,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
     phone: '',
     password: '',
     confirmPassword: '',
+    dateOfBirth: '',  // DOB field for age verification
     residentialAddress: '',
     aadhaarNumber: '',
     aadhaarFile: null,
@@ -287,6 +288,15 @@ const SignupPage = ({ onSwitchToLogin }) => {
       case 1:
         if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
         if (formData.fullName.trim().length < 3) newErrors.fullName = 'Name must be at least 3 characters';
+        if (!formData.dateOfBirth) {
+          newErrors.dateOfBirth = 'Date of birth is required';
+        } else {
+          const dob = new Date(formData.dateOfBirth);
+          const today = new Date();
+          const age = Math.floor((today - dob) / (365.25 * 24 * 60 * 60 * 1000));
+          if (age < 18) newErrors.dateOfBirth = 'You must be at least 18 years old';
+          if (age > 100) newErrors.dateOfBirth = 'Please enter a valid date of birth';
+        }
         break;
       case 2:
         if (!formData.email) newErrors.email = 'Email is required';
@@ -407,6 +417,11 @@ const SignupPage = ({ onSwitchToLogin }) => {
       submitData.append('aadhaar_number', formData.aadhaarNumber.replace(/\s/g, ''));
       submitData.append('monthly_income', formData.monthlyIncome);
       submitData.append('phone_verified', phoneVerified);  // Phone verified via email OTP
+      
+      // Date of Birth for age verification
+      if (formData.dateOfBirth) {
+        submitData.append('date_of_birth', formData.dateOfBirth);
+      }
       
       // PAN details
       if (formData.panNumber) {
@@ -612,6 +627,33 @@ const SignupPage = ({ onSwitchToLogin }) => {
                         />
                       </div>
                       {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
+                    </div>
+
+                    {/* Date of Birth */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Date of Birth<span className="text-red-500">*</span>
+                        <span className="text-xs text-gray-500 ml-2">(Min age: 21 years for loan eligibility)</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          name="dateOfBirth"
+                          value={formData.dateOfBirth}
+                          onChange={handleInputChange}
+                          max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                          min={new Date(new Date().setFullYear(new Date().getFullYear() - 100)).toISOString().split('T')[0]}
+                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#004c8c] focus:border-transparent transition-all ${
+                            errors.dateOfBirth ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                        />
+                      </div>
+                      {errors.dateOfBirth && <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth}</p>}
+                      {formData.dateOfBirth && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Age: {Math.floor((new Date() - new Date(formData.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))} years
+                        </p>
+                      )}
                     </div>
                   </motion.div>
                 )}

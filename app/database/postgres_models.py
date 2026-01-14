@@ -6,14 +6,19 @@ Supports both PostgreSQL and SQLite (demo mode)
 
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float, Boolean, DateTime, 
-    Text, ForeignKey, Enum as SQLEnum, Numeric, Index, TypeDecorator
+    Text, ForeignKey, Enum as SQLEnum, Numeric, Index, TypeDecorator, Date
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 import uuid
 import os
 import enum
 import logging
+
+# Age eligibility constants for loan approval
+MIN_AGE_FOR_LOAN = 21  # Minimum age to apply for loan
+MAX_AGE_SALARIED = 60  # Maximum age at loan maturity for salaried
+MAX_AGE_SELF_EMPLOYED = 65  # Maximum age at loan maturity for self-employed
 
 logger = logging.getLogger(__name__)
 
@@ -236,6 +241,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     phone = Column(String(15), unique=True, nullable=False, index=True)
     phone_verified = Column(Boolean, default=False)
+    date_of_birth = Column(Date, nullable=True)  # DOB for age verification
     
     # Address
     residential_address = Column(Text)
@@ -548,6 +554,8 @@ def generate_user_id():
 
 
 def generate_loan_id():
-    """Generate unique loan ID like QL-LN-123456"""
-    import random
-    return f"QL-LN-{random.randint(100000, 999999)}"
+    """Generate unique loan ID like QL-LN-ABC123 using UUID for guaranteed uniqueness"""
+    import uuid
+    # Use first 6 characters of UUID for guaranteed uniqueness
+    unique_part = uuid.uuid4().hex[:6].upper()
+    return f"QL-LN-{unique_part}"

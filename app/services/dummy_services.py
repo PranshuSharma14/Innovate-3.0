@@ -63,7 +63,9 @@ class DummyServices:
                     "pan": "XXXXXX" + (pg_user.aadhaar_number[-4:] if pg_user.aadhaar_number else "0000"),
                     "salary": float(pg_user.monthly_income) if pg_user.monthly_income else 50000,
                     "email": pg_user.email,
-                    "user_id": pg_user.user_id
+                    "user_id": pg_user.user_id,
+                    "date_of_birth": pg_user.date_of_birth,  # DOB for age verification
+                    "employment_type": pg_user.employment_type or "salaried"  # For max age calculation
                 },
                 message=f"Customer {pg_user.full_name} verified successfully (Registered User)"
             )

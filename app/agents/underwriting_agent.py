@@ -2,10 +2,12 @@
 Underwriting Agent - Credit evaluation and loan approval logic
 """
 
+from datetime import date
 from app.agents.base_agent import BaseAgent
 from app.models.schemas import ConversationContext, ChatResponse, ChatStage, UnderwritingResult
 from app.services.dummy_services import DummyServices
 from app.models.schemas import LoanPurpose
+from app.database.postgres_models import MIN_AGE_FOR_LOAN, MAX_AGE_SALARIED, MAX_AGE_SELF_EMPLOYED
 
 INTEREST_RATE_BY_PURPOSE = {
     LoanPurpose.PERSONAL: 12.63,
@@ -56,6 +58,64 @@ class UnderwritingAgent(BaseAgent):
         credit_score = context.credit_score
         pre_approved_limit = context.pre_approved_limit
         tenure = context.loan_request.tenure
+        tenure_years = tenure / 12  # Convert months to years
+
+        # Get customer age from DOB if available
+        customer_age = None
+        customer_dob = context.customer_data.get('date_of_birth')
+        employment_type = context.customer_data.get('employment_type', 'salaried')
+        
+        if customer_dob:
+            if isinstance(customer_dob, str):
+                from datetime import datetime
+                try:
+                    customer_dob = datetime.strptime(customer_dob, '%Y-%m-%d').date()
+                except:
+                    pass
+            if isinstance(customer_dob, date):
+                today = date.today()
+                customer_age = today.year - customer_dob.year - ((today.month, today.day) < (customer_dob.month, customer_dob.day))
+        
+        # Determine max age based on employment type
+        max_age_at_maturity = MAX_AGE_SELF_EMPLOYED if employment_type in ['self_employed', 'business'] else MAX_AGE_SALARIED
+        
+        # Rule 0: Age eligibility check
+        if customer_age is not None:
+            # Check minimum age
+            if customer_age < MIN_AGE_FOR_LOAN:
+                return UnderwritingResult(
+                    approved=False,
+                    loan_amount=loan_amount,
+                    emi=0,
+                    interest_rate=base_rate,
+                    tenure=tenure,
+                    reason=f"Minimum age for loan is {MIN_AGE_FOR_LOAN} years. Your current age is {customer_age} years.",
+                    requires_salary_slip=False
+                )
+            
+            # Check age at loan maturity (age + tenure <= max age)
+            age_at_maturity = customer_age + tenure_years
+            if age_at_maturity > max_age_at_maturity:
+                max_allowed_tenure_months = int((max_age_at_maturity - customer_age) * 12)
+                if max_allowed_tenure_months <= 0:
+                    return UnderwritingResult(
+                        approved=False,
+                        loan_amount=loan_amount,
+                        emi=0,
+                        interest_rate=base_rate,
+                        tenure=tenure,
+                        reason=f"Your age ({customer_age} years) exceeds the maximum age limit of {max_age_at_maturity} years for loan eligibility.",
+                        requires_salary_slip=False
+                    )
+                return UnderwritingResult(
+                    approved=False,
+                    loan_amount=loan_amount,
+                    emi=0,
+                    interest_rate=base_rate,
+                    tenure=tenure,
+                    reason=f"Age at loan maturity ({age_at_maturity:.0f} years) exceeds maximum allowed age of {max_age_at_maturity} years. Maximum allowed tenure for your age is {max_allowed_tenure_months} months ({max_allowed_tenure_months//12} years).",
+                    requires_salary_slip=False
+                )
 
         # Rule 1: Credit score < 700 → reject
         if credit_score < 700:

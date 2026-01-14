@@ -36,6 +36,7 @@ class SignupRequest(BaseModel):
     residential_address: str
     aadhaar_number: str
     monthly_income: float
+    date_of_birth: Optional[str] = None  # Format: YYYY-MM-DD
     
     @validator('confirm_password')
     def passwords_match(cls, v, values):
@@ -53,6 +54,24 @@ class SignupRequest(BaseModel):
     def validate_password(cls, v):
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters')
+        return v
+    
+    @validator('date_of_birth')
+    def validate_dob(cls, v):
+        if v:
+            from datetime import datetime, date
+            try:
+                dob = datetime.strptime(v, '%Y-%m-%d').date()
+                today = date.today()
+                age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+                if age < 18:
+                    raise ValueError('You must be at least 18 years old')
+                if age > 100:
+                    raise ValueError('Please enter a valid date of birth')
+            except ValueError as e:
+                if 'does not match format' in str(e):
+                    raise ValueError('Invalid date format. Use YYYY-MM-DD')
+                raise e
         return v
 
 
@@ -111,6 +130,7 @@ async def signup(
     residential_address: str = Form(...),
     aadhaar_number: str = Form(...),
     monthly_income: float = Form(...),
+    date_of_birth: str = Form(None),  # Format: YYYY-MM-DD
     pan_number: str = Form(None),  # Optional PAN card number
     aadhaar_card: UploadFile = File(None),
     pan_card: UploadFile = File(None),  # Optional PAN card upload
@@ -128,6 +148,21 @@ async def signup(
         
         # Convert monthly_income to integer to avoid floating point precision issues
         monthly_income_int = int(round(monthly_income))
+        
+        # Parse and validate date of birth
+        dob_date = None
+        if date_of_birth:
+            from datetime import datetime, date as date_type
+            try:
+                dob_date = datetime.strptime(date_of_birth, '%Y-%m-%d').date()
+                today = date_type.today()
+                age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+                if age < 18:
+                    raise HTTPException(status_code=400, detail="You must be at least 18 years old to register")
+                if age > 100:
+                    raise HTTPException(status_code=400, detail="Please enter a valid date of birth")
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
         
         # Validate passwords match
         if password != confirm_password:
@@ -196,7 +231,8 @@ async def signup(
             income_certificate_path=income_cert_path,
             pan_number=pan_number,
             pan_card_path=pan_card_path,
-            phone_verified=phone_verified_bool  # Use converted bool value
+            phone_verified=phone_verified_bool,  # Use converted bool value
+            date_of_birth=dob_date  # Add date of birth
         )
         
         if not user:
