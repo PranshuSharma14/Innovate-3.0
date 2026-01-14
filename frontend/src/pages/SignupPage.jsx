@@ -637,7 +637,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
                           name="email"
                           value={formData.email}
                           onChange={handleInputChange}
-                          placeholder="your@email.com (OTP will be sent here)"
+                          placeholder="(OTP will be sent here, enter valid email)"
                           className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#004c8c] focus:border-transparent transition-all ${
                             errors.email ? 'border-red-500' : 'border-gray-300'
                           }`}
@@ -686,7 +686,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
                       </div>
                       {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                       {!phoneVerified && formData.email && formData.phone.length === 10 && (
-                        <p className="text-xs text-gray-500 mt-1">📧 OTP will be sent to {formData.email}</p>
+                        <p className="text-xs text-gray-500 mt-1">📧 OTP will be sent to {formData.email}.</p>
                       )}
                     </div>
 
